@@ -4,5 +4,10 @@ version := "0.1"
 
 scalaVersion := "2.13.5"
 
-// https://mvnrepository.com/artifact/com.typesafe.akka/akka-actor
-libraryDependencies += "com.typesafe.akka" %% "akka-actor" % "2.6.10"
+//https://doc.akka.io/docs/akka/current/index-classic.html
+val AkkaVersion = "2.6.14"
+libraryDependencies ++= Seq(
+  "com.typesafe.akka" %% "akka-actor" % AkkaVersion,
+  "com.typesafe.akka" %% "akka-testkit" % AkkaVersion % Test
+)
+libraryDependencies += "com.h2database" % "h2" % "1.4.200"

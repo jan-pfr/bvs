@@ -1,15 +1,14 @@
 import akka.actor.Actor
-
 import java.sql.{DriverManager, SQLException, Statement}
 import java.sql.Timestamp
+import scala.sys.exit
 import scala.util.control.Breaks.{break, breakable}
 
-case object Terminate
-case class collum(timeStamp:Timestamp, value:Float )
-
+case class collum(timeStamp:Timestamp, value:Float)
+case object Terminat
 class Aufgabe1 extends Actor {
-var con: java.sql.Connection = null
-val statement = connect()
+  var con: java.sql.Connection = null
+  val statement = connect()
 
   def receive() = {
     case collum(timeStamp, value) =>
@@ -20,16 +19,16 @@ val statement = connect()
         case e: Exception => println("Error: " + e)
       }
 
-    case Terminate =>
+    case Terminat =>
       val result = statement.executeQuery("select * from onruntime")
       while (result.next) {
         println(result.getString("timestamp")+", "+ result.getString("data"))
       }
       con.close
-      println("Actor stopped.")
+      println("Actor1 stopped.")
       context.stop(self)
 
-    case _ => println("Invalid message.")
+    case _ => println("Actor1: Invalid message.")
 
   }
 
@@ -41,19 +40,19 @@ val statement = connect()
     } catch {
       case e: ClassNotFoundException =>
         println("Could not load SQL driver: " + e)
-        System.exit(-1)
+        exit(-1)
     }
 
     val retries = 10
     var timer = 1
-     breakable {for (i <- 0 until retries) {
+    breakable {for (i <- 0 until retries) {
       if (i >= 7) {timer = 5000}
       println("Connecting to database...")
 
       try { // Wait a bit for db to start
         Thread.sleep(timer)
         // Connect to database
-         con = DriverManager.getConnection("jdbc:h2:~/database")
+        con = DriverManager.getConnection("jdbc:h2:~/database")
         println("Successfully connected")
         break
       }catch {
@@ -65,9 +64,11 @@ val statement = connect()
       }
     }}
 
-      val statement = con.createStatement()
-      statement.execute("drop table if exists onruntime")
+    val statement = con.createStatement()
+    statement.execute("drop table if exists onruntime")
     statement.execute(" create table onruntime  (timestamp timestamp , data float (10))")
-      statement
+    statement
   }
 }
+
+

@@ -15,7 +15,7 @@ class Aufgabe2(actorRef: ActorRef) extends Actor{
       values+=datapoint(timeStamp, value)
 
       val datapointsFromTheLastDay = new ListBuffer[Float]
-      val testTimePeriod: Timestamp = new Timestamp(timeStamp.getTime() - 24*60*60*1000)
+      val testTimePeriod: Timestamp = new Timestamp(timeStamp.getTime() - 24*60*60*1001)
 
       for(x <- values) {
         if (testTimePeriod.before(x.timeStamp)){

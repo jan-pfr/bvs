@@ -19,15 +19,9 @@ class Aufgabe1 extends Actor {
       }
 
     case "stop" =>
-      con.close
+      con.close()
       println("Actor1 stopped.")
       context.stop(self)
-
-    case "ausgabe" =>
-      val result = statement.executeQuery("select * from onruntime")
-      while (result.next) {
-        println(result.getString("timestamp")+", "+ result.getString("data"))
-      }
 
     case _ => println("Actor1: Invalid message.")
   }
@@ -44,15 +38,13 @@ class Aufgabe1 extends Actor {
     }
 
     val retries = 10
-    var timer = 1
     breakable {for (i <- 0 until retries) {
-      if (i >= 7) {timer = 5000}
+      if (i >= 7) {Thread.sleep(1000)}
       println("Connecting to database...")
 
       try { // Wait a bit for db to start
-        Thread.sleep(timer)
         // Connect to database
-        con = DriverManager.getConnection("jdbc:h2:~/database")
+        con = DriverManager.getConnection("jdbc:h2:./ressources/database")
         println("Successfully connected")
         break
       }catch {

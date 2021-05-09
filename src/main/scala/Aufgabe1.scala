@@ -19,16 +19,17 @@ class Aufgabe1 extends Actor {
       }
 
     case "stop" =>
-      val result = statement.executeQuery("select * from onruntime")
-      while (result.next) {
-        println(result.getString("timestamp")+", "+ result.getString("data"))
-      }
       con.close
       println("Actor1 stopped.")
       context.stop(self)
 
-    case _ => println("Actor1: Invalid message.")
+    case "ausgabe" =>
+      val result = statement.executeQuery("select * from onruntime")
+      while (result.next) {
+        println(result.getString("timestamp")+", "+ result.getString("data"))
+      }
 
+    case _ => println("Actor1: Invalid message.")
   }
 
 

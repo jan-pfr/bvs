@@ -16,7 +16,6 @@ class Aufgabe2(actorRef: ActorRef) extends Actor{
 
       val datapointsFromTheLastDay = new ListBuffer[Float]
       val testTimePeriod: Timestamp = new Timestamp(timeStamp.getTime() - 24*60*60*1000)
-      println("Timestamp: " + timeStamp + " Timestamp 24h before: " + testTimePeriod)
 
       for(x <- values) {
         if (testTimePeriod.before(x.timeStamp)){
@@ -29,7 +28,7 @@ class Aufgabe2(actorRef: ActorRef) extends Actor{
         summe+=y
       }
       summe = summe/datapointsFromTheLastDay.length
-      println("Summe: " + summe + ", Anzahl Datensätze: " + datapointsFromTheLastDay.length)
+      println("Tag: " + timeStamp + ", Mittelwert: " + BigDecimal(summe).setScale(2, BigDecimal.RoundingMode.HALF_UP) + ", Anzahl Datensätze: " + datapointsFromTheLastDay.length)
       actorRef ! collum(timeStamp, summe)
     case "stop" =>
       println("Actor2 stopped.")

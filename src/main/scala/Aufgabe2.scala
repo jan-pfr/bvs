@@ -5,7 +5,6 @@ import scala.collection.mutable.ListBuffer
 
 
 case class datapoint(timeStamp:Timestamp, value: Float)
-
 class Aufgabe2(actorRef: ActorRef) extends Actor{
 
   val values = new ListBuffer[datapoint]

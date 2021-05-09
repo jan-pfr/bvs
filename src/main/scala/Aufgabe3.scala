@@ -7,7 +7,8 @@ import java.util.Date
 
 class Aufgabe3(actorRef: ActorRef) extends Actor{
   def receive() = {
-    case "stop" => context.stop(self)
+    case "stop" =>
+      context.stop(self)
     case message:String =>
       val convertedArray = convertStringToArray(message)
       actorRef ! datapoint(convertStringToTimeStamp(convertedArray(0)), convertedArray(2).toFloat)
@@ -18,9 +19,10 @@ class Aufgabe3(actorRef: ActorRef) extends Actor{
     val convertedArray = input.split(",").map(_.trim)
     convertedArray
   }
+
   def convertStringToTimeStamp(input: String): Timestamp = {
     val date: Date = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").parse(input);
-    new java.sql.Timestamp(date.getTime)
+    new Timestamp(date.getTime)
 
   }
 }

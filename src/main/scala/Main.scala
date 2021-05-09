@@ -5,20 +5,26 @@ import java.sql.Timestamp
 
 object Main {
   def main(args: Array[String]): Unit = {
-    val actor1 = ActorSystem("HFU").actorOf(Props[Aufgabe1], name= "task1")
-    val actor2 = ActorSystem("HFU").actorOf(Props[Aufgabe2], name= "task2")
-    actor1 ! collum(new Timestamp(System.currentTimeMillis()), 222 )
-    actor1 ! collum(new Timestamp(System.currentTimeMillis()), 252 )
-    actor1 ! collum(new Timestamp(System.currentTimeMillis()), 262 )
-    actor1 ! collum(new Timestamp(System.currentTimeMillis()), 272 )
+
+    val r =  new scala.util.Random()
+    val actorSystem = ActorSystem("HFU")
+    val actor1 = actorSystem.actorOf(Props[Aufgabe1], name= "task1")
+    val actor2 = actorSystem.actorOf(Props( new Aufgabe2(actor1)), name= "task2")
+    val actor3 = actorSystem.actorOf(Props(new Aufgabe3(actor2)), name = "task3")
+    for (i <- 1 to 10){
+      actor1 ! collum(new Timestamp(System.currentTimeMillis()), r.nextInt(100))
+    Thread.sleep(100)
+    }
     actor1 ! 3.54 //invalid
     actor1 ! "Hallo Ich bins wieder" //invalid
-    actor1 ! Terminat
-    actor2 ! datapoint(new Timestamp(System.currentTimeMillis()), 223 )
-    actor2 ! datapoint(new Timestamp(System.currentTimeMillis()), 256 )
-    actor2 ! datapoint(new Timestamp(System.currentTimeMillis()), 282 )
-    actor2 ! datapoint(new Timestamp(System.currentTimeMillis()), 292 )
-    actor2 ! Terminate
+    for(y <- 1 to 10){
+      actor2 ! datapoint(new Timestamp(System.currentTimeMillis()), r.nextInt(100))
+    Thread.sleep(100)}
+    actor1 ! "stop"
+    actor2 ! "stop"
+      actor3 ! "Ich bin eine Maus!"
+      actor3 ! "Ich,bin,32,43,Datef,fdf"
+
 
   }
 

@@ -5,7 +5,6 @@ import scala.sys.exit
 import scala.util.control.Breaks.{break, breakable}
 
 case class collum(timeStamp:Timestamp, value:Float)
-case object Terminat
 class Aufgabe1 extends Actor {
   var con: java.sql.Connection = null
   val statement = connect()
@@ -19,7 +18,7 @@ class Aufgabe1 extends Actor {
         case e: Exception => println("Error: " + e)
       }
 
-    case Terminat =>
+    case "stop" =>
       val result = statement.executeQuery("select * from onruntime")
       while (result.next) {
         println(result.getString("timestamp")+", "+ result.getString("data"))

@@ -1,19 +1,22 @@
-import akka.actor.Actor
-import java.sql.{DriverManager, SQLException, Statement}
-import java.sql.Timestamp
+import akka.actor.{Actor, ActorLogging}
+import akka.cluster.Cluster
+import akka.cluster.ClusterEvent.{MemberEvent, MemberUp}
+
+import java.sql.{DriverManager, SQLException, Statement, Timestamp}
 import scala.sys.exit
 import scala.util.control.Breaks.{break, breakable}
+case class Collum(timeStamp:Timestamp, value:Float)
+class Aufgabe1 extends Actor with ActorLogging {
+  val cluster= Cluster(context.system)
+  override def preStart(): Unit = cluster.subscribe(self, classOf[MemberUp])
 
-case class collum(timeStamp:Timestamp, value:Float)
-class Aufgabe1 extends Actor {
   var con: java.sql.Connection = null
   val statement = connect()
 
   def receive() = {
-    case collum(timeStamp, value) =>
-      val insert = collum(timeStamp = timeStamp, value = value)
+    case Collum(timeStamp, value) =>
       try {
-        statement.execute(" insert into onruntime values ('"+insert.timeStamp +"', '"+insert.value+"')")
+        statement.execute(" insert into onruntime values ('"+timeStamp +"', '"+value+"')")
       }catch{
         case e: Exception => println("Error: " + e)
       }
@@ -23,7 +26,8 @@ class Aufgabe1 extends Actor {
       println("Actor1 stopped.")
       context.stop(self)
 
-    case _ => println("Actor1: Invalid message.")
+    case message => println("Actor1: Unhandeled Message: " + message)
+    case _: MemberEvent => // ignore
   }
 
 
@@ -33,7 +37,7 @@ class Aufgabe1 extends Actor {
       Class.forName("org.h2.Driver")
     } catch {
       case e: ClassNotFoundException =>
-        println("Could not load SQL driver: " + e)
+        println("Could not load Database driver: " + e)
         exit(-1)
     }
 
@@ -42,7 +46,7 @@ class Aufgabe1 extends Actor {
       if (i >= 7) {Thread.sleep(1000)}
       println("Connecting to database...")
 
-      try { // Wait a bit for db to start
+      try {
         // Connect to database
         con = DriverManager.getConnection("jdbc:h2:./ressources/database")
         println("Successfully connected")
@@ -58,7 +62,7 @@ class Aufgabe1 extends Actor {
 
     val statement = con.createStatement()
     statement.execute("drop table if exists onruntime")
-    statement.execute(" create table onruntime  (timestamp timestamp , data float (10))")
+    statement.execute(" create table onruntime  (timestamp timestamp , data float (10), PRIMARY KEY (timestamp))")
     statement
   }
 }

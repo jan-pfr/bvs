@@ -1,17 +1,21 @@
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorLogging}
+import akka.cluster.Cluster
+import akka.cluster.ClusterEvent.MemberUp
 
 import java.sql.Timestamp
 import scala.collection.mutable.ListBuffer
+case class Datapoint(timeStamp:Timestamp, value: Float)
+class Aufgabe2 extends Actor with ActorLogging {
+  val path = "akka://HFU@127.0.0.1:2551/user/task1"
+  val task1Actor= context.actorSelection(path)
+  val cluster= Cluster(context.system)
+  override def preStart(): Unit = cluster.subscribe(self, classOf[MemberUp])
 
-
-case class datapoint(timeStamp:Timestamp, value: Float)
-class Aufgabe2(actorRef: ActorRef) extends Actor{
-
-  val values = new ListBuffer[datapoint]
+  val values = new ListBuffer[Datapoint]
   def receive() = {
 
-    case datapoint(timeStamp, value) =>
-      values+=datapoint(timeStamp, value)
+    case Datapoint(timeStamp, value) =>
+      values+=Datapoint(timeStamp, value)
 
       val datapointsFromTheLastDay = new ListBuffer[Float]
       val testTimePeriod: Timestamp = new Timestamp(timeStamp.getTime() - 24*60*60*1001)
@@ -22,18 +26,14 @@ class Aufgabe2(actorRef: ActorRef) extends Actor{
 
         }
       }
-      var summe:Float = 0
-      for(y <- datapointsFromTheLastDay){
-        summe+=y
-      }
+      var summe:Float = datapointsFromTheLastDay.sum
       summe = summe/datapointsFromTheLastDay.length
-      println("Tag: " + timeStamp + ", Mittelwert: " + BigDecimal(summe).setScale(2, BigDecimal.RoundingMode.HALF_UP) + ", Anzahl Datensätze: " + datapointsFromTheLastDay.length)
-      actorRef ! collum(timeStamp, summe)
+      //println("Tag: " + timeStamp + ", Mittelwert: " + BigDecimal(summe).setScale(2, BigDecimal.RoundingMode.HALF_UP) + ", Anzahl Datensätze: " + datapointsFromTheLastDay.length)
+      task1Actor ! Collum(timeStamp, summe)
     case "stop" =>
       println("Actor2 stopped.")
       context.stop(self)
-
-    case _ => println("Actor2: Invalid message.")
+    case message => println("Actor2: Unhandeled Message: " + message)
 
   }
 

@@ -1,25 +1,33 @@
-import akka.actor.{Actor, ActorLogging}
-import akka.cluster.Cluster
-import akka.cluster.ClusterEvent.MemberUp
+import akka.actor.{Actor, ActorLogging, ActorRef}
 
-class Aufgabe4  extends Actor with ActorLogging {
- val path = "akka://HFU@127.0.0.1:8003/user/task3"
-  val task3Actor= context.actorSelection(path)
-  val cluster= Cluster(context.system)
+import scala.collection.mutable
 
-  override def preStart(): Unit = cluster.subscribe(self, classOf[MemberUp])
-
-
+class Aufgabe4 (actorRef: ActorRef)  extends Actor with ActorLogging {
+  val dataPackage = new mutable.Queue[String]
   def receive() = {
     case "stop" => context.stop(self)
     case message:String =>
       try {
         val importedCSV = io.Source.fromFile("./ressources/" + message)
-        for(line <- importedCSV.getLines().drop(1)){
+        for(line <- importedCSV.getLines().drop(1)) {
           Thread.sleep(1)
-          task3Actor ! line
+          actorRef ! line
         }
-        
+        Thread.sleep(10000)
+
+          /* to be continued
+          dataPackage +=line
+          if(dataPackage.length>=100){
+            actorRef ! dataPackage
+            dataPackage.clearAndShrink()
+            println("Cleared and Shrinked")
+          }
+        }
+        actorRef ! dataPackage
+        println("DataPackage: " + dataPackage.length)
+
+           */
+
       } catch{
         case exception: Exception => println(exception)
       }

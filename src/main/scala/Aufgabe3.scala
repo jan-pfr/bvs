@@ -1,25 +1,22 @@
-import akka.actor.{Actor, ActorLogging}
-import akka.cluster.Cluster
-import akka.cluster.ClusterEvent.MemberUp
+import akka.actor.{Actor, ActorLogging, ActorRef}
 
-import java.sql.Timestamp
-import java.text.SimpleDateFormat
-import java.util.Date
-
-
-class Aufgabe3 extends Actor with ActorLogging {
-  val path = "akka://HFU@127.0.0.1:8002/user/task2"
-  val task2Actor= context.actorSelection(path)
-
-  val cluster= Cluster(context.system)
-  override def preStart(): Unit = cluster.subscribe(self, classOf[MemberUp])
+class Aufgabe3 (actorRef: ActorRef) extends Actor with ActorLogging {
 
   def receive() = {
     case "stop" =>
       context.stop(self)
+      /* to be continued
+    case dataPackages:mutable.Queue[String] =>
+      for (dataPackage <- dataPackages){
+        println(dataPackage)
+        val convertedArray = convertStringToArray(dataPackage)
+        actorRef ! Datapoint(convertStringToTimeStamp(convertedArray(0)), convertedArray(2).toFloat)
+      }
+
+       */
     case message:String =>
       val convertedArray = convertStringToArray(message)
-      task2Actor ! Datapoint(convertStringToTimeStamp(convertedArray(0)), convertedArray(2).toFloat)
+      actorRef ! Datapoint(Utils.convertStringToTimeStamp(convertedArray(0)), convertedArray(2).toFloat)
     case message => println("Actor3: Unhandeled Message: " + message)
   }
 
@@ -28,9 +25,5 @@ class Aufgabe3 extends Actor with ActorLogging {
     convertedArray
   }
 
-  def convertStringToTimeStamp(input: String): Timestamp = {
-    val date: Date = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").parse(input);
-    new Timestamp(date.getTime)
 
-  }
 }

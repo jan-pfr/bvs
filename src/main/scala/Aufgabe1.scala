@@ -2,21 +2,27 @@ import akka.actor.{Actor, ActorLogging}
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent.{MemberEvent, MemberUp}
 
-import java.sql.{DriverManager, SQLException, Statement, Timestamp}
+import java.sql._
 import scala.sys.exit
 import scala.util.control.Breaks.{break, breakable}
+
 case class Collum(timeStamp:Timestamp, value:Float)
+
 class Aufgabe1 extends Actor with ActorLogging {
+
+  //was tut das?
   val cluster= Cluster(context.system)
   override def preStart(): Unit = cluster.subscribe(self, classOf[MemberUp])
 
+  val preparedInsertStatement = "insert into onruntime values(?,?)"
+  val preparedSelectStatement = "select data from onruntime where timestamp= ?"
   var con: java.sql.Connection = null
   val statement = connect()
 
   def receive() = {
     case Collum(timeStamp, value) =>
       try {
-        statement.execute(" insert into onruntime values ('"+timeStamp +"', '"+value+"')")
+        ExecutePreparedInsertLStatement(preparedInsertStatement, con, timeStamp, value)
       }catch{
         case e: Exception => println("Error: " + e)
       }
@@ -26,7 +32,21 @@ class Aufgabe1 extends Actor with ActorLogging {
       println("Actor1 stopped.")
       context.stop(self)
 
-    case message => println("Actor1: Unhandeled Message: " + message)
+    case timestampRequest: Timestamp =>
+      try {
+       val result = ExecutePreparedSelectStatement(preparedSelectStatement, con, timestampRequest)
+        while(result.next()){
+          val resultData = result.getFloat("data")
+          sender ! resultData
+        }
+      }catch{
+        case e: Exception => println("ErrorWhileSelect: " + e)
+      }
+
+
+
+
+    case message => println("Actor1: Unhandled Message: " + message)
     case _: MemberEvent => // ignore
   }
 
@@ -65,6 +85,19 @@ class Aufgabe1 extends Actor with ActorLogging {
     statement.execute(" create table onruntime  (timestamp timestamp , data float (10), PRIMARY KEY (timestamp))")
     statement
   }
+
+  def ExecutePreparedInsertLStatement (preparedStatement: String,connection: Connection, timestamp: Timestamp, value:Float) = {
+    val prepared = connection.prepareStatement(preparedStatement)
+    prepared.setTimestamp(1, timestamp)
+    prepared.setFloat(2, value)
+    prepared.executeUpdate()
+  }
+  def ExecutePreparedSelectStatement (preparedStatement: String,connection: Connection, timestamp: Timestamp) = {
+    val prepared = connection.prepareStatement(preparedStatement)
+    prepared.setTimestamp(1, timestamp)
+    prepared.executeQuery()
+  }
+
 }
 
 

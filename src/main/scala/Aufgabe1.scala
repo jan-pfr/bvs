@@ -9,17 +9,17 @@ import scala.util.control.Breaks.{break, breakable}
 case class Collum(timeStamp:Timestamp, value:Float)
 
 class Aufgabe1 extends Actor with ActorLogging {
-
-  //was tut das?
-  val cluster= Cluster(context.system)
-  override def preStart(): Unit = cluster.subscribe(self, classOf[MemberUp])
-
   val preparedInsertStatement = "insert into onruntime values(?,?)"
   val preparedSelectStatement = "select data from onruntime where timestamp= ?"
   var con: java.sql.Connection = null
-  val statement = connect()
+  val cluster= Cluster(context.system)
+
+  override def preStart(): Unit ={
+    cluster.subscribe(self, classOf[MemberUp])
+    connect() }
 
   def receive() = {
+
     case Collum(timeStamp, value) =>
       try {
         ExecutePreparedInsertLStatement(preparedInsertStatement, con, timeStamp, value)
@@ -43,22 +43,18 @@ class Aufgabe1 extends Actor with ActorLogging {
         case e: Exception => println("ErrorWhileSelect: " + e)
       }
 
-
-
-
     case message => println("Actor1: Unhandled Message: " + message)
     case _: MemberEvent => // ignore
   }
 
-
   //establish a connection to a local in memory database
-  def connect(): Statement = {
+  def connect() = {
     try { // Load Database driver
       Class.forName("org.h2.Driver")
     } catch {
       case e: ClassNotFoundException =>
         println("Could not load Database driver: " + e)
-        exit(-1)
+        exit()
     }
 
     val retries = 10
@@ -79,11 +75,10 @@ class Aufgabe1 extends Actor with ActorLogging {
           println("Thread interrupted? Should not happen. " + ie)
       }
     }}
-
     val statement = con.createStatement()
     statement.execute("drop table if exists onruntime")
     statement.execute(" create table onruntime  (timestamp timestamp , data float (10), PRIMARY KEY (timestamp))")
-    statement
+
   }
 
   def ExecutePreparedInsertLStatement (preparedStatement: String,connection: Connection, timestamp: Timestamp, value:Float) = {

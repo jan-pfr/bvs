@@ -1,7 +1,7 @@
 import akka.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
 
-import java.io.File
+import java.io.InputStreamReader
 import java.sql.Timestamp
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -14,9 +14,9 @@ object Utils {
   }
 
   def createSystem(fileName: String, systemName: String): ActorSystem = {
-    val resource = getClass.getResource(fileName)
-    val configFile=resource.getFile
-    val config = ConfigFactory.parseFile(new File(configFile)).resolve()
+    val resource = getClass.getClassLoader.getResourceAsStream(fileName)
+    val reader = new InputStreamReader(resource)
+    val config = ConfigFactory.parseReader(reader).resolve()
     val result = ActorSystem(systemName, config)
     result
   }

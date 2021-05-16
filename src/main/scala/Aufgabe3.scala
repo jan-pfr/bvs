@@ -1,23 +1,19 @@
 import akka.actor.{Actor, ActorLogging, ActorRef}
 
-class Aufgabe3 (actorRef: ActorRef) extends Actor with ActorLogging {
+import scala.collection.mutable
 
+class Aufgabe3 (actorRef: ActorRef) extends Actor with ActorLogging {
+  val dataPointQueue = new mutable.ListBuffer[Datapoint]
   def receive() = {
     case "stop" =>
       context.stop(self)
-      /* to be continued
-    case dataPackages:mutable.Queue[String] =>
-      for (dataPackage <- dataPackages){
-        println(dataPackage)
-        val convertedArray = convertStringToArray(dataPackage)
-        actorRef ! Datapoint(convertStringToTimeStamp(convertedArray(0)), convertedArray(2).toFloat)
-      }
 
-       */
-    case message:String =>
-      val convertedArray = convertStringToArray(message)
-      actorRef ! Datapoint(Utils.convertStringToTimeStamp(convertedArray(0)), convertedArray(2).toFloat)
-    case message => println("Actor3: Unhandeled Message: " + message)
+    case dataPackages:List[String] =>
+      dataPackages.foreach(dataPackage =>dataPointQueue += Datapoint(Utils.convertStringToTimeStamp(convertStringToArray(dataPackage)(0)), convertStringToArray(dataPackage)(2).toFloat))
+      actorRef ! dataPointQueue.toList
+      dataPointQueue.clear()
+
+    case message => println("Actor3: Unhandled Message: " + message)
   }
 
   def convertStringToArray(input: String): Array[String] = {

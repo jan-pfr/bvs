@@ -5,7 +5,7 @@ object Main extends{
 
     val actorSystem1 = Utils.createSystem("aufgabe1.conf", "HFU")
     val actorSystem2 = Utils.createSystem("aufgabe2.conf", "HFU")
-    val actorSystemHTTP = Utils.createSystem("aufgabe3.conf", "HFU")
+    val actorSystemHTTP = Utils.createSystem("httpActor.conf", "HFU")
     actorSystem1.actorOf(Props[Aufgabe1], name= "task1")
     val actor2 = actorSystem2.actorOf(Props[Aufgabe2], name = "task2")
     val actor3 = actorSystem2.actorOf(Props(new Aufgabe3(actor2)), name = "task3")

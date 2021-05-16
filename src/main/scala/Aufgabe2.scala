@@ -23,19 +23,11 @@ Source: myself
   */
 
   val datapointsFromTheLastDay = new mutable.Queue[Datapoint]
-  //to be continued
-  //val movingAveragePackage = new mutable.Queue[Collum]
   def receive() = {
+    case dataPointPackage:List[Datapoint] =>
+      dataPointPackage.foreach(x => calculateMovingAverage(x.timeStamp, x.value))
 
-    case Datapoint(timeStamp, value) =>
-      datapointsFromTheLastDay+=Datapoint(timeStamp, value)
 
-      val testTimePeriod: Timestamp = new Timestamp(timeStamp.getTime() - 24*60*60*1001)
-      datapointsFromTheLastDay.dequeueAll(_.timeStamp.before(testTimePeriod))
-
-      val movingAverage:Float = datapointsFromTheLastDay.map(_.value).sum / datapointsFromTheLastDay.length
-      //println("Tag: " + timeStamp + ", Mittelwert: " + BigDecimal(movingAverage).setScale(2, BigDecimal.RoundingMode.HALF_UP) + ", Anzahl Datensätze: " + datapointsFromTheLastDay.length)
-      task1Actor ! Collum(timeStamp, movingAverage)
     case "stop" =>
       println("Actor2 stopped.")
       context.stop(self)
@@ -43,6 +35,15 @@ Source: myself
     case message => println("Actor2: Unhandeled Message: " + message)
 
   }
+def calculateMovingAverage(timeStamp: Timestamp, value: Float) = {
+  datapointsFromTheLastDay+=Datapoint(timeStamp, value)
 
+  val testTimePeriod: Timestamp = new Timestamp(timeStamp.getTime() - 24*60*60*1001)
+  datapointsFromTheLastDay.dequeueAll(_.timeStamp.before(testTimePeriod))
+
+  val movingAverage:Float = datapointsFromTheLastDay.map(_.value).sum / datapointsFromTheLastDay.length
+  task1Actor ! Collum(timeStamp, movingAverage)
+  //println("Tag: " + timeStamp + ", Mittelwert: " + BigDecimal(movingAverage).setScale(2, BigDecimal.RoundingMode.HALF_UP) + ", Anzahl Datensätze: " + datapointsFromTheLastDay.length)
+}
 
 }

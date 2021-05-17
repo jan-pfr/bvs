@@ -1,4 +1,5 @@
 import akka.actor.Actor
+import akka.cluster.ClusterEvent.MemberEvent
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.Directives._
@@ -25,8 +26,6 @@ trait JsonSupport extends SprayJsonSupport with FinalCaseClassModel {
   implicit val meanTempWithoutDateFormat = jsonFormat1(meanTempFailure.apply)
   implicit val errorMessageFormat = jsonFormat1(errorMessage.apply)
 }
-
-
 
 
 class HTTPActor extends Actor with JsonSupport {
@@ -79,6 +78,8 @@ class HTTPActor extends Actor with JsonSupport {
   def receive() = {
     case _ =>
       println("This Actor should not get messages.")
+
+    case _: MemberEvent => // ignore
 
   }
 }

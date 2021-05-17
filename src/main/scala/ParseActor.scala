@@ -2,7 +2,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef}
 
 import scala.collection.mutable
 
-class Aufgabe3 (actorRef: ActorRef) extends Actor with ActorLogging {
+class ParseActor(actorRef: ActorRef) extends Actor with ActorLogging {
   val dataPointQueue = new mutable.ListBuffer[Datapoint]
   def receive() = {
     case "stop" =>

@@ -4,25 +4,24 @@ import akka.cluster.ClusterEvent.{MemberEvent, MemberUp}
 
 import java.sql._
 import scala.sys.exit
-import scala.util.control.Breaks.{break, breakable}
+import scala.util.control.Breaks.{breakable}
 
-case class Collum(timeStamp:Timestamp, value:Float)
+case class Row(timeStamp:Timestamp, value:Float)
 
-class Aufgabe1 extends Actor with ActorLogging {
-  val preparedInsertStatement = "insert into onruntime values(?,?)"
-  val preparedSelectStatement = "select data from onruntime where timestamp= ?"
-  var con: java.sql.Connection = null
+class DatabaseActor extends Actor with ActorLogging {
+  val con: java.sql.Connection = connect()
+  afterDBStartup()
+  val preparedInsert = con.prepareStatement("insert into onruntime values(?,?)")
+  val preparedSelect = con.prepareStatement("select data from onruntime where timestamp= ?")
   val cluster= Cluster(context.system)
 
-  override def preStart(): Unit ={
-    cluster.subscribe(self, classOf[MemberUp])
-    connect() }
+  override def preStart(): Unit ={cluster.subscribe(self, classOf[MemberUp])}
 
   def receive() = {
 
-    case Collum(timeStamp, value) =>
+    case Row(timeStamp, value) =>
       try {
-        ExecutePreparedInsertLStatement(preparedInsertStatement, con, timeStamp, value)
+        ExecutePreparedInsertLStatement(timeStamp, value)
       }catch{
         case e: Exception => println("Error: " + e)
       }
@@ -34,7 +33,7 @@ class Aufgabe1 extends Actor with ActorLogging {
 
     case timestampRequest: Timestamp =>
       try {
-       val result = ExecutePreparedSelectStatement(preparedSelectStatement, con, timestampRequest)
+       val result = ExecutePreparedSelectStatement(timestampRequest)
         while(result.next()){
           val resultData = result.getFloat("data")
           sender ! resultData
@@ -48,13 +47,13 @@ class Aufgabe1 extends Actor with ActorLogging {
   }
 
   //establish a connection to a local in memory database
-  def connect() = {
+  def connect(): Connection = {
     try { // Load Database driver
       Class.forName("org.h2.Driver")
     } catch {
       case e: ClassNotFoundException =>
         println("Could not load Database driver: " + e)
-        exit()
+        exit(-1)
     }
 
     val retries = 10
@@ -64,9 +63,8 @@ class Aufgabe1 extends Actor with ActorLogging {
 
       try {
         // Connect to database
-        con = DriverManager.getConnection("jdbc:h2:./ressources/database")
         println("Successfully connected")
-        break
+        return DriverManager.getConnection("jdbc:h2:./ressources/database")
       }catch {
         case sqle: SQLException =>
           println("Failed to connect to database attempt " + i)
@@ -75,22 +73,23 @@ class Aufgabe1 extends Actor with ActorLogging {
           println("Thread interrupted? Should not happen. " + ie)
       }
     }}
+    null
+  }
+
+  def ExecutePreparedInsertLStatement (timestamp: Timestamp, value:Float) = {
+    preparedInsert.setTimestamp(1, timestamp)
+    preparedInsert.setFloat(2, value)
+    preparedInsert.executeUpdate()
+  }
+  def ExecutePreparedSelectStatement (timestamp: Timestamp) = {
+    preparedSelect.setTimestamp(1, timestamp)
+    preparedSelect.executeQuery()
+  }
+  def afterDBStartup () = {
     val statement = con.createStatement()
     statement.execute("drop table if exists onruntime")
     statement.execute(" create table onruntime  (timestamp timestamp , data float (10), PRIMARY KEY (timestamp))")
-
-  }
-
-  def ExecutePreparedInsertLStatement (preparedStatement: String,connection: Connection, timestamp: Timestamp, value:Float) = {
-    val prepared = connection.prepareStatement(preparedStatement)
-    prepared.setTimestamp(1, timestamp)
-    prepared.setFloat(2, value)
-    prepared.executeUpdate()
-  }
-  def ExecutePreparedSelectStatement (preparedStatement: String,connection: Connection, timestamp: Timestamp) = {
-    val prepared = connection.prepareStatement(preparedStatement)
-    prepared.setTimestamp(1, timestamp)
-    prepared.executeQuery()
+    statement.close()
   }
 
 }

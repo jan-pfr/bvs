@@ -1,10 +1,10 @@
 import akka.actor.{Actor, ActorLogging}
 import akka.cluster.Cluster
-import akka.cluster.ClusterEvent.{MemberEvent, MemberUp}
+import akka.cluster.ClusterEvent.MemberUp
 
 import java.sql._
 import scala.sys.exit
-import scala.util.control.Breaks.{breakable}
+import scala.util.control.Breaks.breakable
 
 case class Row(timeStamp:Timestamp, value:Float)
 
@@ -19,12 +19,13 @@ class DatabaseActor extends Actor with ActorLogging {
 
   def receive() = {
 
-    case Row(timeStamp, value) =>
+    case dataPackage:List[Row] =>
+      dataPackage.foreach(x =>
       try {
-        ExecutePreparedInsertLStatement(timeStamp, value)
+        ExecutePreparedInsertLStatement(x.timeStamp, x.value)
       }catch{
         case e: Exception => println("Error: " + e)
-      }
+      })
 
     case "stop" =>
       con.close()
@@ -41,9 +42,8 @@ class DatabaseActor extends Actor with ActorLogging {
       }catch{
         case e: Exception => println("ErrorWhileSelect: " + e)
       }
-
-    case message => println("Actor1: Unhandled Message: " + message)
-    case _: MemberEvent => // ignore
+    case _:String => print(_)
+    case _:MemberUp =>
   }
 
   //establish a connection to a local in memory database

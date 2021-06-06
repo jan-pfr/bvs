@@ -6,6 +6,7 @@ class ReadFileActor(actorRef: ActorRef)  extends Actor with ActorLogging {
   val dataPackage = new ListBuffer[String]
   def receive() = {
     case "stop" => context.stop(self)
+      //pack up and send a message
     case message:String =>
       try {
         val importedCSV = io.Source.fromFile("./ressources/" + message)

@@ -8,8 +8,13 @@ import java.util.Date
 
 object Utils {
   def convertStringToTimeStamp(input: String): Timestamp = {
-    val date: Date = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").parse(input);
-    new Timestamp(date.getTime)
+    try {
+      val date: Date = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").parse(input);
+      new Timestamp(date.getTime)
+    }catch{
+      case exception: Exception =>
+        new Timestamp(0)
+    }
 
   }
 
@@ -20,4 +25,5 @@ object Utils {
     val result = ActorSystem(systemName, config)
     result
   }
+
 }

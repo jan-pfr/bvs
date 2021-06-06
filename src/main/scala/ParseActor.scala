@@ -7,7 +7,7 @@ class ParseActor(actorRef: ActorRef) extends Actor with ActorLogging {
   def receive() = {
     case "stop" =>
       context.stop(self)
-
+    //pack up and send a message
     case dataPackages:List[String] =>
       dataPackages.foreach(dataPackage =>dataPointQueue += Datapoint(Utils.convertStringToTimeStamp(convertStringToArray(dataPackage)(0)), convertStringToArray(dataPackage)(2).toFloat))
       actorRef ! dataPointQueue.toList

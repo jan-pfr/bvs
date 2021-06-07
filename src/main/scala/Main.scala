@@ -3,8 +3,8 @@ import akka.actor.Props
 object Main extends{
   def main(args: Array[String]): Unit = {
 
-    val actorSystem1 = Utils.createSystem("aufgabe1.conf", "HFU")
-    val actorSystem2 = Utils.createSystem("aufgabe2.conf", "HFU")
+    val actorSystem1 = Utils.createSystem("databaseActor.conf", "HFU")
+    val actorSystem2 = Utils.createSystem("CalculateActor.conf", "HFU")
     val actorSystemHTTP = Utils.createSystem("httpActor.conf", "HFU")
     val actorSystemRegistry = Utils.createSystem("registryActor.conf","HFU")
 

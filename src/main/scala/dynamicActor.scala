@@ -29,7 +29,7 @@ abstract class dynamicActor extends Actor with ActorLogging {
       try {
         registryActor.get ! "DatabaseActor"
       } catch {
-        case exception: Exception =>
+        case exception: Exception => log.info("Actor not yet registered...")
       }
     }
   }

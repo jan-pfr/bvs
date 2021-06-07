@@ -42,8 +42,6 @@ class DatabaseActor extends Actor with ActorLogging {
       }catch{
         case e: Exception => println("ErrorWhileSelect: " + e)
       }
-    case _:String => print(_)
-    case _:MemberUp =>
   }
 
   //establish a connection to a local in memory database
@@ -88,6 +86,7 @@ class DatabaseActor extends Actor with ActorLogging {
   def afterDBStartup () = {
     val statement = con.createStatement()
     statement.execute("drop table if exists onruntime")
+    println("Drop Table")
     statement.execute(" create table onruntime  (timestamp timestamp , data float (10), PRIMARY KEY (timestamp))")
     statement.close()
   }

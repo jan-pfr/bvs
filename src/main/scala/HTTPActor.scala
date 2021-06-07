@@ -8,6 +8,7 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
 import spray.json.DefaultJsonProtocol
+import java.sql.Timestamp
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -61,35 +62,41 @@ class HTTPActor extends dynamicActor with JsonSupport {
   }
 
   def setRoute() = {
-    val route = pathPrefix("when"){
-      (pathEnd & get){
-        complete{
+    val route = pathPrefix("when") {
+      (pathEnd & get) {
+        complete {
           errorMessage(text)
         }
-      } ~ (pathPrefix(Segment)){input => pathEnd {
-        get {
-          val convertedInput = Utils.convertStringToTimeStamp(input.replace('_', ' '))
-          try {
-            val sendQuestion: Future[Float] = ask(databaseActor.get, convertedInput)(timeOut).mapTo[Float]
-            onComplete(sendQuestion) {
-              case Success(result) =>
+      } ~ (pathPrefix(Segment)) { input =>
+        pathEnd {
+          get {
+            val convertedInput = Utils.convertStringToTimeStamp(input.replace('_', ' '))
+            if (convertedInput == new Timestamp(0)) {
+              complete {
+                errorMessage(text)
+              }
+            }
+            try {
+              val sendQuestion: Future[Float] = ask(databaseActor.get, convertedInput)(timeOut).mapTo[Float]
+              onComplete(sendQuestion) {
+                case Success(result) =>
+                  complete {
+                    meanTempSuccess(convertedInput.toString, result)
+                  }
+                case Failure(exception) =>
+                  complete {
+                    meanTempFailure(convertedInput.toString)
+                  }
+              }
+            } catch {
+              case exception: Exception =>
                 complete {
-                  meanTempSuccess(convertedInput.toString, result)
-                }
-              case Failure(exception) =>
-                complete {
-                  meanTempFailure(convertedInput.toString)
+                  errorMessage(exception.getMessage)
                 }
             }
-          }catch{
-            case exception: Exception =>
-              complete{
-                errorMessage(exception.getMessage)
-              }
           }
-         }
         }
-       }
+      }
     }
     route
    }

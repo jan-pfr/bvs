@@ -12,7 +12,7 @@ class ReadFileActor(actorRef: ActorRef)  extends Actor with ActorLogging {
         val importedCSV = io.Source.fromFile("./ressources/" + message)
         for(line <- importedCSV.getLines().drop(1)) {
           dataPackage +=line
-          if(dataPackage.length>=50){
+          if(dataPackage.length>=500){
             actorRef ! dataPackage.toList
             dataPackage.clear()
           }

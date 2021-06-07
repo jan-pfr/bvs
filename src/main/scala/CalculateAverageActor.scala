@@ -12,20 +12,16 @@ class CalculateAverageActor extends dynamicActor {
   val dataPointPackageQueue = new mutable.Queue[List[Datapoint]]
   val datapointsFromTheLastDay = new mutable.Queue[Datapoint]
 
-   override def receive() = {
+  override def receive() = {
     case dataPointPackage:List[Datapoint] =>
       if(databaseActor == None){
         dataPointPackageQueue += dataPointPackage
-      }else if(dataPointPackageQueue.length <= 0){
-        dataPointPackage.foreach(x => calculateMovingAverage(x.timeStamp, x.value))
-        }else{
-        dataPointPackageQueue.toList.foreach(dataPointPackage => dataPointPackage.foreach(x => calculateMovingAverage(x.timeStamp, x.value)))
-        if(dataPointQueue.length>=0){
-          databaseActor.get ! dataPointQueue.toList
-          dataPointQueue.clear()
-        }
-      }
+      }else{
+        packageQueHandler()
+        dataPointPackage.foreach(dataPoint => calculateMovingAverage(dataPoint.timeStamp, dataPoint.value, dataPointPackage.length))
 
+
+      }
     case "update" =>
       databaseActor match {
         case None => registryActor.get ! "DatabaseActor"
@@ -46,11 +42,12 @@ class CalculateAverageActor extends dynamicActor {
     case message:Option[ActorSelection] =>
       if(databaseActor == None){
         databaseActor = message
+        packageQueHandler()
       }
 
     case message => println("Actor2: Unhandled Message: " + message)
-   }
-  def calculateMovingAverage(timeStamp: Timestamp, value: Float) = {
+  }
+  def calculateMovingAverage(timeStamp: Timestamp, value: Float, packageLength:Int) = {
     datapointsFromTheLastDay+=Datapoint(timeStamp, value)
 
     val testTimePeriod: Timestamp = new Timestamp(timeStamp.getTime() - 24*60*60*1001)
@@ -58,9 +55,13 @@ class CalculateAverageActor extends dynamicActor {
 
     val movingAverage:Float = datapointsFromTheLastDay.map(_.value).sum / datapointsFromTheLastDay.length
     dataPointQueue += Row(timeStamp, movingAverage)
-    if(dataPointQueue.length>=50){
+    if(dataPointQueue.length >= packageLength){
       databaseActor.get ! dataPointQueue.toList
       dataPointQueue.clear()
     }
+  }
+  def packageQueHandler()={
+    dataPointPackageQueue.toList.foreach(dataPointPackage => dataPointPackage.foreach(x => calculateMovingAverage(x.timeStamp, x.value, dataPointPackage.length)))
+    }
 }
-}
+

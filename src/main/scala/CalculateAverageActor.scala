@@ -6,7 +6,7 @@ import scala.collection.mutable
 
 case class Datapoint(timeStamp:Timestamp, value: Float)
 
-class CalculateAverageActor extends dynamicActor {
+class CalculateAverageActor extends DynamicActor {
 
   val dataPointQueue = new mutable.ListBuffer[Row]
   val dataPointPackageQueue = new mutable.Queue[List[Datapoint]]
@@ -17,7 +17,7 @@ class CalculateAverageActor extends dynamicActor {
       if(databaseActor == None){
         dataPointPackageQueue += dataPointPackage
       }else{
-        packageQueHandler()
+        packageQueueHandler()
         dataPointPackage.foreach(dataPoint => calculateMovingAverage(dataPoint.timeStamp, dataPoint.value, dataPointPackage.length))
 
 
@@ -42,7 +42,7 @@ class CalculateAverageActor extends dynamicActor {
     case message:Option[ActorSelection] =>
       if(databaseActor == None){
         databaseActor = message
-        packageQueHandler()
+        packageQueueHandler()
       }
 
     case message => println("Actor2: Unhandled Message: " + message)
@@ -60,7 +60,7 @@ class CalculateAverageActor extends dynamicActor {
       dataPointQueue.clear()
     }
   }
-  def packageQueHandler()={
+  def packageQueueHandler()={
     dataPointPackageQueue.toList.foreach(dataPointPackage => dataPointPackage.foreach(x => calculateMovingAverage(x.timeStamp, x.value, dataPointPackage.length)))
     }
 }

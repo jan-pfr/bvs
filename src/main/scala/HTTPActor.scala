@@ -30,7 +30,7 @@ trait JsonSupport extends SprayJsonSupport with FinalCaseClassModel {
   implicit val errorMessageFormat = jsonFormat1(errorMessage.apply)
 }
 
-class HTTPActor extends dynamicActor with JsonSupport {
+class HTTPActor extends DynamicActor with JsonSupport {
   val text = "No matching Dataset"
 
   implicit val timeOut = new Timeout(1 seconds)

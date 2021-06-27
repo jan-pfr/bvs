@@ -9,6 +9,7 @@ class ReadFileActor(actorRef: ActorRef)  extends Actor with ActorLogging {
   def receive() = {
 
     case message:String =>
+      log.info("Read File: {}", message)
       try {
 
         val importedCSV = io.Source.fromFile("./ressources/" + message)

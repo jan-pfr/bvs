@@ -1,7 +1,8 @@
 import Utils.{DataPackageDataPoint, DataPoint}
-import akka.actor.{ActorSelection, Props}
+import akka.actor.{ActorSelection, Address, Props}
 import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
 import akka.cluster.MemberStatus
+import akka.remote.routing.RemoteRouterConfig
 import akka.routing.RoundRobinPool
 
 import java.sql.Timestamp
@@ -54,12 +55,11 @@ class CalculateAverageActor extends DynamicActor {
 
     val testTimePeriod: Timestamp = new Timestamp(timeStamp.getTime() - 24*60*60*1001)
     dataPointsFromTheLastDay.dequeueAll(_.timeStamp.before(testTimePeriod))
-
     val movingAverage:Float = dataPointsFromTheLastDay.map(_.value).sum / dataPointsFromTheLastDay.length
-    //log.info("T: {}, Average: {}", timeStamp, movingAverage)
     dataPointQueue += DataPoint(timeStamp, movingAverage)
+
     if(dataPointQueue.length >= packageLength){
-      log.info("Counter of Datasets: {}, packageLength: {}, DataSet: {}", dataPointsFromTheLastDay.length, packageLength, datasetNames.indexOf(dataSetName) )
+      log.info("This DataPackage is from {}", dataSetName)
       databaseActor.get ! dataPointQueue.toList
       dataPointQueue.clear()
     }
@@ -81,14 +81,17 @@ class CalculateAverageActor extends DynamicActor {
 }
 
 object CalculateAverageActor extends App {
+  val addresses = Seq(Address("akka", "remotesys","filereadactor", 2552), Address("akka", "secremotesys","filereadactor", 2553))
+
   val system = Utils.createSystem("CalculateActor.conf", "HFU")
   val calculateAverageActor = system.actorOf(Props[CalculateAverageActor], name = "CalculateAverageActor")
 
   val parseActor = system.actorOf(Props(new ParseActor(calculateAverageActor)), name = "ParseActor")
   val readFileActorProps = Props(new ReadFileActor(parseActor))
-  val routerActor = system.actorOf(RoundRobinPool(2).props(readFileActorProps))
+  val routerActor = system.actorOf(RemoteRouterConfig(RoundRobinPool(2), addresses).props(readFileActorProps))
   routerActor ! "jena_head.csv"
   routerActor ! "jena_tail.csv"
+  //routerActor ! "jena_shorted.csv"
 
 }
 

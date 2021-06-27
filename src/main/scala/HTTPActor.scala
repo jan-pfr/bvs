@@ -11,7 +11,6 @@ import akka.util.Timeout
 import java.sql.Timestamp
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.io.StdIn
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
@@ -84,7 +83,6 @@ class HTTPActor extends DynamicActor with JsonSupport {
         pathEnd {
           get {
             val convertedInput = Utils.convertStringToTimeStamp(input.replace('_', ' '))
-            //this part doesnt work for know
             if (convertedInput == new Timestamp(0)) {
               complete {
                 errorMessage(text)
@@ -117,8 +115,7 @@ class HTTPActor extends DynamicActor with JsonSupport {
 
   def startServer(route: Route) = {
     val bindingFuture = Http().newServerAt("localhost", 8080).bind(route)
-    log.info(s"Server up and running http://localhost:8080/\nPress Backspace to stop...")
-    StdIn.readLine()
+    log.info(s"Server up and running http://localhost:8080/")
     bindingFuture.flatMap(_.unbind()).onComplete(_ => system.terminate())
   }
 }

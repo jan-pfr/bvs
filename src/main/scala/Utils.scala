@@ -29,7 +29,7 @@ object Utils {
     implicit val countFormat = jsonFormat1(count.apply)
   }
 
-  def convertStringToTimeStamp(input: String): Timestamp = {
+  def convertStringToTimeStamp(input: String) = {
     try {
       val date: Date = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").parse(input);
       new Timestamp(date.getTime)

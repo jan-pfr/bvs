@@ -33,7 +33,7 @@ class DatabaseActor extends Actor with ActorLogging {
     case values:List[DataPoint] =>
       values.foreach(x =>
       try {
-        ExecutePreparedInsertLStatement(x.timeStamp, x.value)
+        ExecutePreparedInsertStatement(x.timeStamp, x.value)
       }catch{
         case e: Exception => log.info("Error occurred: {}", e)
       })
@@ -86,7 +86,7 @@ class DatabaseActor extends Actor with ActorLogging {
     null
   }
 
-  def ExecutePreparedInsertLStatement (timestamp: Timestamp, value:Float) = {
+  def ExecutePreparedInsertStatement(timestamp: Timestamp, value:Float) = {
     preparedInsert.setTimestamp(1, timestamp)
     preparedInsert.setFloat(2, value)
     preparedInsert.executeUpdate()

@@ -1,4 +1,4 @@
-import Utils.{DataPackageMap, DataPoint}
+import Utils.{DataPackageDataPoint, DataPoint}
 import akka.actor.{ActorSelection, Props}
 import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
 import akka.cluster.MemberStatus
@@ -10,27 +10,20 @@ import scala.collection.mutable
 class CalculateAverageActor extends DynamicActor {
 
   val dataPointQueue = new mutable.ListBuffer[DataPoint]
-  val dataPackageQueue = new mutable.Queue[DataPackageMap]
+  val dataPackageQueue = new mutable.Queue[DataPackageDataPoint]
   val datasetNames = new mutable.ListBuffer[String]
-  val dataPointsFromTheLastDay = new mutable.Queue[DataPoint]
   val listOfTheLastDayQueues = new mutable.ListBuffer[mutable.Queue[DataPoint]]
 
   override def receive() = {
 
-    case dataPackage: DataPackageMap =>
-      log.info("Package received")
+    case dataPackage: DataPackageDataPoint =>
       if(datasetNames.toList.contains(dataPackage.id)){
-        log.info("Name is here!: {}", dataPackage.id)
         checkForDBActor(dataPackage)
       }else{
-        log.info("Name is Not here!: {}", dataPackage.id)
         datasetNames += dataPackage.id
-        log.info("A Name has been added: {}", datasetNames.toList.toString())
-        listOfTheLastDayQueues += dataPointsFromTheLastDay
-        log.info("A 24h List has been added: {}", listOfTheLastDayQueues.toList.toString())
+        listOfTheLastDayQueues += new mutable.Queue[DataPoint]
         checkForDBActor(dataPackage)
       }
-
 
     case "update" =>
       if(databaseActor == None) {
@@ -56,33 +49,32 @@ class CalculateAverageActor extends DynamicActor {
     case message => log.info("An unhandled message received: {}", message)
   }
   def calculateMovingAverage(timeStamp: Timestamp, value: Float, packageLength:Int, dataSetName:String) = {
-    val listOfTheLastDay = listOfTheLastDayQueues.toList(datasetNames.indexOf(dataSetName))
-    listOfTheLastDay += DataPoint(timeStamp, value)
+    val dataPointsFromTheLastDay = listOfTheLastDayQueues(datasetNames.indexOf(dataSetName))
+    dataPointsFromTheLastDay += DataPoint(timeStamp, value)
 
     val testTimePeriod: Timestamp = new Timestamp(timeStamp.getTime() - 24*60*60*1001)
-    listOfTheLastDay.dequeueAll(_.timeStamp.before(testTimePeriod))
+    dataPointsFromTheLastDay.dequeueAll(_.timeStamp.before(testTimePeriod))
 
-    val movingAverage:Float = listOfTheLastDay.map(_.value).sum / listOfTheLastDay.length
+    val movingAverage:Float = dataPointsFromTheLastDay.map(_.value).sum / dataPointsFromTheLastDay.length
+    //log.info("T: {}, Average: {}", timeStamp, movingAverage)
     dataPointQueue += DataPoint(timeStamp, movingAverage)
-    //log.info("Counter of Datasets: {}, packageLength: {}, DataSet: {}", listOfTheLastDay.length, packageLength, datasetNames.indexOf(dataSetName) )
-    if(listOfTheLastDay.length >= packageLength){
+    if(dataPointQueue.length >= packageLength){
+      log.info("Counter of Datasets: {}, packageLength: {}, DataSet: {}", dataPointsFromTheLastDay.length, packageLength, datasetNames.indexOf(dataSetName) )
       databaseActor.get ! dataPointQueue.toList
       dataPointQueue.clear()
     }
   }
+
   def dataPackageQueueHandler()={
-    dataPackageQueue.toList.foreach(dataPointPackage => dataPointPackage.Map.keys.foreach(x => calculateMovingAverage(x, dataPointPackage.Map(x), dataPointPackage.Map.size, dataPointPackage.id)))
+    dataPackageQueue.toList.foreach(dataPointPackage => dataPointPackage.List.foreach(x => calculateMovingAverage(x.timeStamp, x.value, dataPointPackage.List.length, dataPointPackage.id)))
     }
 
-  def checkForDBActor(dataPackage: DataPackageMap) = {
+  def checkForDBActor(dataPackage: DataPackageDataPoint) = {
     if(databaseActor == None){
-      log.info("Database not ready jet.")
       dataPackageQueue += dataPackage
-      log.info("DataPackage has been added to Queue.")
     }else{
-      log.info("Database is online.")
       dataPackageQueueHandler()
-      dataPackage.Map.keys.foreach(value => calculateMovingAverage(value, dataPackage.Map(value), dataPackage.Map.size, dataPackage.id))
+      dataPackage.List.foreach(value => calculateMovingAverage(value.timeStamp, value.value, dataPackage.List.length, dataPackage.id))
     }
 
   }

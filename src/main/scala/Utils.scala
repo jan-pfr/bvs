@@ -12,7 +12,7 @@ object Utils {
 
   case class DataPoint(timeStamp:Timestamp, value: Float)
   case class DataPackageList(id:String, List:List[String])
-  case class DataPackageMap(id:String, Map: Map[Timestamp, Float])
+  case class DataPackageDataPoint(id:String, List:List[DataPoint])
 
   trait FinalCaseClassModel extends DefaultJsonProtocol {
     final case class meanTempSuccess(when : String, what: Float)

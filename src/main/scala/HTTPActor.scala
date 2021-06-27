@@ -87,7 +87,6 @@ class HTTPActor extends DynamicActor with JsonSupport {
             //this part doesnt work for know
             if (convertedInput == new Timestamp(0)) {
               complete {
-                log.info("Bin hier")
                 errorMessage(text)
               }
             }

@@ -1,4 +1,4 @@
-import Utils.Datapoint
+import Utils.DataPoint
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent.MemberUp
@@ -30,7 +30,7 @@ class DatabaseActor extends Actor with ActorLogging {
         case e: Exception => log.info("ErrorWhileSelectCount: {}", e)
       }
 
-    case values:List[Datapoint] =>
+    case values:List[DataPoint] =>
       values.foreach(x =>
       try {
         ExecutePreparedInsertLStatement(x.timeStamp, x.value)

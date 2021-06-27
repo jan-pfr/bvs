@@ -10,7 +10,7 @@ import java.util.Date
 
 object Utils {
 
-  case class Datapoint(timeStamp:Timestamp, value: Float)
+  case class DataPoint(timeStamp:Timestamp, value: Float)
   case class DataPackageList(id:String, List:List[String])
   case class DataPackageMap(id:String, Map: Map[Timestamp, Float])
 

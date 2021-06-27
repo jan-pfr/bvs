@@ -1,6 +1,6 @@
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, Props}
 import akka.cluster.Cluster
-import akka.cluster.ClusterEvent.MemberUp
+import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
 
 import java.sql._
 import scala.sys.exit
@@ -16,6 +16,7 @@ class DatabaseActor extends Actor with ActorLogging {
   val cluster= Cluster(context.system)
 
   override def preStart(): Unit ={cluster.subscribe(self, classOf[MemberUp])}
+  override def postStop(): Unit = {cluster.unsubscribe(self)}
 
   def receive() = {
 
@@ -42,6 +43,10 @@ class DatabaseActor extends Actor with ActorLogging {
       }catch{
         case e: Exception => println("ErrorWhileSelect: " + e)
       }
+      //toDo: unhandled Message
+    case MemberUp(member) =>
+    case state:CurrentClusterState =>
+    case n:String =>
   }
 
   //establish a connection to a local in memory database
@@ -91,6 +96,11 @@ class DatabaseActor extends Actor with ActorLogging {
     statement.close()
   }
 
+}
+
+object DatabaseActor extends App{
+  val system = Utils.createSystem("databaseActor.conf", "HFU")
+  system.actorOf(Props[DatabaseActor], name= "DatabaseActor")
 }
 
 

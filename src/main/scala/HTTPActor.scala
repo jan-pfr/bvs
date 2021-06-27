@@ -1,4 +1,4 @@
-import akka.actor.ActorSelection
+import akka.actor.{ActorSelection, Props}
 import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
 import akka.cluster.MemberStatus
 import akka.http.scaladsl.Http
@@ -8,8 +8,8 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
 import spray.json.DefaultJsonProtocol
-import java.sql.Timestamp
 
+import java.sql.Timestamp
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.io.StdIn
@@ -38,10 +38,10 @@ class HTTPActor extends DynamicActor with JsonSupport {
   implicit val system = context.system
   implicit val ec = system.dispatcher
 
-  override def receive() = {
+  override def receive():Receive = {
     case "update" =>
-      databaseActor match {
-        case None => registryActor.get ! "DatabaseActor"
+      if(databaseActor == None) {
+        registryActor.get ! "DatabaseActor"
       }
 
     case MemberUp(member)=>
@@ -55,10 +55,8 @@ class HTTPActor extends DynamicActor with JsonSupport {
     case message:Option[ActorSelection] =>
       if(databaseActor == None){
         databaseActor = message
-        val route = setRoute()
-        startServer(route)
+       startServer(setRoute())
       }
-
   }
 
   def setRoute() = {
@@ -107,4 +105,9 @@ class HTTPActor extends DynamicActor with JsonSupport {
     StdIn.readLine()
     bindingFuture.flatMap(_.unbind()).onComplete(_ => system.terminate())
   }
+}
+
+object HTTPActor extends App{
+  val system = Utils.createSystem("httpActor.conf", "HFU")
+  system.actorOf(Props[HTTPActor], name = "HTTPActor")
 }

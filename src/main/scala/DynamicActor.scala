@@ -9,12 +9,7 @@ abstract class DynamicActor extends Actor with ActorLogging {
   val cluster= Cluster(context.system)
 
   override def preStart(): Unit = cluster.subscribe(self, classOf[MemberUp])
-  override def postStop(): Unit = cluster.unsubscribe(self)
 
-
-   def receive()= {
-     case message =>
-  }
 
   def register(member: Member) = {
     if(member.hasRole("RegistryActor")){

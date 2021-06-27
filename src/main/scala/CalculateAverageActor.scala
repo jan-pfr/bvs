@@ -1,6 +1,7 @@
-import akka.actor.ActorSelection
+import akka.actor.{ActorSelection, Props}
 import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
 import akka.cluster.MemberStatus
+
 import java.sql.Timestamp
 import scala.collection.mutable
 
@@ -19,12 +20,11 @@ class CalculateAverageActor extends DynamicActor {
       }else{
         packageQueueHandler()
         dataPointPackage.foreach(dataPoint => calculateMovingAverage(dataPoint.timeStamp, dataPoint.value, dataPointPackage.length))
-
-
       }
+
     case "update" =>
-      databaseActor match {
-        case None => registryActor.get ! "DatabaseActor"
+      if(databaseActor == None) {
+        registryActor.get ! "DatabaseActor"
       }
 
     case "stop" =>
@@ -63,5 +63,14 @@ class CalculateAverageActor extends DynamicActor {
   def packageQueueHandler()={
     dataPointPackageQueue.toList.foreach(dataPointPackage => dataPointPackage.foreach(x => calculateMovingAverage(x.timeStamp, x.value, dataPointPackage.length)))
     }
+}
+
+object CalculateAverageActor extends App {
+  val system = Utils.createSystem("CalculateActor.conf", "HFU")
+  val calculateAverageActor = system.actorOf(Props[CalculateAverageActor], name = "CalculateAverageActor")
+  val parseActor = system.actorOf(Props(new ParseActor(calculateAverageActor)), name = "ParseActor")
+  val readFileActor = system.actorOf(Props(new ReadFileActor(parseActor)), name = "ReadFileActor")
+  readFileActor ! "jena_shorted.csv"
+
 }
 

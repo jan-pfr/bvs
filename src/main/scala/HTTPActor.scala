@@ -1,13 +1,12 @@
+import Utils.JsonSupport
 import akka.actor.{ActorSelection, Props}
 import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
 import akka.cluster.MemberStatus
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
 import akka.util.Timeout
-import spray.json.DefaultJsonProtocol
 
 import java.sql.Timestamp
 import scala.concurrent.Future
@@ -16,22 +15,12 @@ import scala.io.StdIn
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 
-
-trait FinalCaseClassModel extends DefaultJsonProtocol {
-  final case class meanTempSuccess(when: String, what: Float)
-  final case class meanTempFailure(when: String)
-  final case class errorMessage(message: String)
-}
-
-
-trait JsonSupport extends SprayJsonSupport with FinalCaseClassModel {
-  implicit val meanTempWithDateFormat = jsonFormat2(meanTempSuccess.apply)
-  implicit val meanTempWithoutDateFormat = jsonFormat1(meanTempFailure.apply)
-  implicit val errorMessageFormat = jsonFormat1(errorMessage.apply)
-}
+//TODO:
+// - What is happening, when an invalid date is given?
+// - Maybe an 404 Error, (the Server is going to be online in any case, return a 404 until it gets the routes
 
 class HTTPActor extends DynamicActor with JsonSupport {
-  val text = "No matching Dataset"
+  val text = "Missing argument: Timestamp"
 
   implicit val timeOut = new Timeout(1 seconds)
 
@@ -57,10 +46,36 @@ class HTTPActor extends DynamicActor with JsonSupport {
         databaseActor = message
        startServer(setRoute())
       }
+    case message => log.info("An unhandled message received: {}", message)
   }
 
   def setRoute() = {
-    val route = pathPrefix("when") {
+    val countRoute:Route = concat(
+      pathPrefix("count"){
+        get{
+          try{
+            val getCount:Future[Int] = ask(databaseActor.get, "getCount")(timeOut).mapTo[Int]
+            onComplete(getCount){
+              case Success(result) =>
+                complete{
+                  count(result)
+                }
+              case Failure(exception) =>
+                complete{
+                  errorMessage("An error occurred while trying to count the number of entries in the database.")
+                }
+            }
+          } catch {
+            case exception: Exception =>
+              complete {
+                errorMessage(exception.getMessage)
+              }
+          }
+        }
+      }
+    )
+
+    val whenRoute = pathPrefix("when") {
       (pathEnd & get) {
         complete {
           errorMessage(text)
@@ -69,8 +84,10 @@ class HTTPActor extends DynamicActor with JsonSupport {
         pathEnd {
           get {
             val convertedInput = Utils.convertStringToTimeStamp(input.replace('_', ' '))
+            //this part doesnt work for know
             if (convertedInput == new Timestamp(0)) {
               complete {
+                log.info("Bin hier")
                 errorMessage(text)
               }
             }
@@ -96,12 +113,12 @@ class HTTPActor extends DynamicActor with JsonSupport {
         }
       }
     }
-    route
-   }
+    concat(countRoute, whenRoute)
+  }
 
   def startServer(route: Route) = {
     val bindingFuture = Http().newServerAt("localhost", 8080).bind(route)
-    println(s"Server up and running http://localhost:8080/\nPress Backspace to stop...")
+    log.info(s"Server up and running http://localhost:8080/\nPress Backspace to stop...")
     StdIn.readLine()
     bindingFuture.flatMap(_.unbind()).onComplete(_ => system.terminate())
   }

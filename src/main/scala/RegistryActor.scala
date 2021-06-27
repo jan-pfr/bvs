@@ -28,6 +28,8 @@ class RegistryActor extends Actor with ActorLogging{
 
     case state:CurrentClusterState =>
       state.members.filter(_.status==MemberStatus.Up).foreach(addToRegistry)
+
+    case message => log.info("An unhandled message received: {}", message)
   }
 
   def addToRegistry(member: Member) = {

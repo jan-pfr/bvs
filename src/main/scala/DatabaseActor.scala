@@ -1,36 +1,46 @@
+import Utils.Datapoint
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.cluster.Cluster
-import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
+import akka.cluster.ClusterEvent.MemberUp
 
 import java.sql._
 import scala.sys.exit
 import scala.util.control.Breaks.breakable
-
-case class Row(timeStamp:Timestamp, value:Float)
 
 class DatabaseActor extends Actor with ActorLogging {
   val con: java.sql.Connection = connect()
   afterDBStartup()
   val preparedInsert = con.prepareStatement("insert into onruntime values(?,?)")
   val preparedSelect = con.prepareStatement("select data from onruntime where timestamp= ?")
+  val preparedSelectCount = con.prepareStatement("select count(timestamp) from onruntime")
   val cluster= Cluster(context.system)
 
   override def preStart(): Unit ={cluster.subscribe(self, classOf[MemberUp])}
   override def postStop(): Unit = {cluster.unsubscribe(self)}
 
   def receive() = {
+    case "getCount" =>
+      try{
+        val result = ExecutePreparedSelectCountStatement()
+        while(result.next()){
+          val resultSet = result.getInt("count(timestamp)")
+          sender ! resultSet
+        }
+      }catch{
+        case e: Exception => log.info("ErrorWhileSelectCount: {}", e)
+      }
 
-    case dataPackage:List[Row] =>
-      dataPackage.foreach(x =>
+    case values:List[Datapoint] =>
+      values.foreach(x =>
       try {
         ExecutePreparedInsertLStatement(x.timeStamp, x.value)
       }catch{
-        case e: Exception => println("Error: " + e)
+        case e: Exception => log.info("Error occurred: {}", e)
       })
 
     case "stop" =>
       con.close()
-      println("Actor1 stopped.")
+      println("Database shutdown.")
       context.stop(self)
 
     case timestampRequest: Timestamp =>
@@ -41,12 +51,9 @@ class DatabaseActor extends Actor with ActorLogging {
           sender ! resultData
         }
       }catch{
-        case e: Exception => println("ErrorWhileSelect: " + e)
+        case e: Exception => log.info("ErrorWhileSelect: {}", e)
       }
-      //toDo: unhandled Message
-    case MemberUp(member) =>
-    case state:CurrentClusterState =>
-    case n:String =>
+    case message => log.info("An unhandled message received: {}", message)
   }
 
   //establish a connection to a local in memory database
@@ -55,25 +62,25 @@ class DatabaseActor extends Actor with ActorLogging {
       Class.forName("org.h2.Driver")
     } catch {
       case e: ClassNotFoundException =>
-        println("Could not load Database driver: " + e)
+        log.info("Could not load Database driver: {}", e)
         exit(-1)
     }
 
     val retries = 10
     breakable {for (i <- 0 until retries) {
       if (i >= 7) {Thread.sleep(1000)}
-      println("Connecting to database...")
+      log.info("Connecting to database...")
 
       try {
         // Connect to database
-        println("Successfully connected")
+        log.info("Successfully connected")
         return DriverManager.getConnection("jdbc:h2:./ressources/database")
       }catch {
         case sqle: SQLException =>
-          println("Failed to connect to database attempt " + i)
-          println(sqle.getMessage)
+          log.info("Failed to connect to database attempt: {}", i)
+          log.info(sqle.getMessage)
         case ie: InterruptedException =>
-          println("Thread interrupted? Should not happen. " + ie)
+          log.info("Thread interrupted? Should not happen. {} ", ie)
       }
     }}
     null
@@ -88,10 +95,13 @@ class DatabaseActor extends Actor with ActorLogging {
     preparedSelect.setTimestamp(1, timestamp)
     preparedSelect.executeQuery()
   }
+  def ExecutePreparedSelectCountStatement() = {
+    preparedSelectCount.executeQuery()
+  }
   def afterDBStartup () = {
     val statement = con.createStatement()
     statement.execute("drop table if exists onruntime")
-    println("Drop Table")
+    log.info("Table dropped")
     statement.execute(" create table onruntime  (timestamp timestamp , data float (10), PRIMARY KEY (timestamp))")
     statement.close()
   }

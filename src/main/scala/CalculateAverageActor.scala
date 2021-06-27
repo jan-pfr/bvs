@@ -1,25 +1,25 @@
+import Utils.{DataPackageMap, Datapoint}
 import akka.actor.{ActorSelection, Props}
 import akka.cluster.ClusterEvent.{CurrentClusterState, MemberUp}
 import akka.cluster.MemberStatus
+import akka.routing.RoundRobinPool
 
 import java.sql.Timestamp
 import scala.collection.mutable
 
-case class Datapoint(timeStamp:Timestamp, value: Float)
-
 class CalculateAverageActor extends DynamicActor {
 
-  val dataPointQueue = new mutable.ListBuffer[Row]
-  val dataPointPackageQueue = new mutable.Queue[List[Datapoint]]
+  val dataPointQueue = new mutable.ListBuffer[Datapoint]
+  val dataPackageQueue = new mutable.Queue[DataPackageMap]
   val datapointsFromTheLastDay = new mutable.Queue[Datapoint]
 
   override def receive() = {
-    case dataPointPackage:List[Datapoint] =>
+    case dataPackage: DataPackageMap =>
       if(databaseActor == None){
-        dataPointPackageQueue += dataPointPackage
+        dataPackageQueue += dataPackage
       }else{
-        packageQueueHandler()
-        dataPointPackage.foreach(dataPoint => calculateMovingAverage(dataPoint.timeStamp, dataPoint.value, dataPointPackage.length))
+        dataPackageQueueHandler()
+        dataPackage.Map.keys.foreach(value => calculateMovingAverage(value, dataPackage.Map(value), dataPackage.Map.size))
       }
 
     case "update" =>
@@ -42,10 +42,10 @@ class CalculateAverageActor extends DynamicActor {
     case message:Option[ActorSelection] =>
       if(databaseActor == None){
         databaseActor = message
-        packageQueueHandler()
+        dataPackageQueueHandler()
       }
 
-    case message => println("Actor2: Unhandled Message: " + message)
+    case message => log.info("An unhandled message received: {}", message)
   }
   def calculateMovingAverage(timeStamp: Timestamp, value: Float, packageLength:Int) = {
     datapointsFromTheLastDay+=Datapoint(timeStamp, value)
@@ -54,23 +54,26 @@ class CalculateAverageActor extends DynamicActor {
     datapointsFromTheLastDay.dequeueAll(_.timeStamp.before(testTimePeriod))
 
     val movingAverage:Float = datapointsFromTheLastDay.map(_.value).sum / datapointsFromTheLastDay.length
-    dataPointQueue += Row(timeStamp, movingAverage)
+    dataPointQueue += Datapoint(timeStamp, movingAverage)
     if(dataPointQueue.length >= packageLength){
       databaseActor.get ! dataPointQueue.toList
       dataPointQueue.clear()
     }
   }
-  def packageQueueHandler()={
-    dataPointPackageQueue.toList.foreach(dataPointPackage => dataPointPackage.foreach(x => calculateMovingAverage(x.timeStamp, x.value, dataPointPackage.length)))
+  def dataPackageQueueHandler()={
+    dataPackageQueue.toList.foreach(dataPointPackage => dataPointPackage.Map.keys.foreach(x => calculateMovingAverage(x, dataPointPackage.Map(x), dataPointPackage.Map.size)))
     }
 }
 
 object CalculateAverageActor extends App {
   val system = Utils.createSystem("CalculateActor.conf", "HFU")
   val calculateAverageActor = system.actorOf(Props[CalculateAverageActor], name = "CalculateAverageActor")
+
   val parseActor = system.actorOf(Props(new ParseActor(calculateAverageActor)), name = "ParseActor")
-  val readFileActor = system.actorOf(Props(new ReadFileActor(parseActor)), name = "ReadFileActor")
-  readFileActor ! "jena_shorted.csv"
+  val readFileActorProps = Props(new ReadFileActor(parseActor))
+  val routerActor = system.actorOf(RoundRobinPool(2).props(readFileActorProps))
+  routerActor ! "jena_head.csv"
+  routerActor ! "jena_tail.csv"
 
 }
 

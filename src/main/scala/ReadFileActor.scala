@@ -1,27 +1,32 @@
+
+import Utils.DataPackageList
 import akka.actor.{Actor, ActorLogging, ActorRef}
 
 import scala.collection.mutable.ListBuffer
 
 class ReadFileActor(actorRef: ActorRef)  extends Actor with ActorLogging {
-  val dataPackage = new ListBuffer[String]
+  val dataPackageValues = new ListBuffer[String]
   def receive() = {
-    case "stop" => context.stop(self)
-      //pack up and send a message
+
     case message:String =>
       try {
+
         val importedCSV = io.Source.fromFile("./ressources/" + message)
-        for(line <- importedCSV.getLines().drop(1)) {
-          dataPackage +=line
-          if(dataPackage.length>=500){
-            actorRef ! dataPackage.toList
-            dataPackage.clear()
+
+        for(line <- importedCSV.getLines()) {
+          dataPackageValues +=line
+          if(dataPackageValues.length >= 500){
+            actorRef ! DataPackageList(message, dataPackageValues.toList)
+            dataPackageValues.clear()
           }
         }
-        actorRef ! dataPackage.toList
+        actorRef ! DataPackageList(message, dataPackageValues.toList)
 
       } catch{
-        case exception: Exception => println(exception)
+        case exception: Exception => log.info("An Error occured: {}", exception)
       }
-    case message => println("Actor4: Unhandled Message: " + message)
+    case "stop" => context.stop(self)
+
+    case message => log.info("An unhandled message received: {}", message)
   }
 }
